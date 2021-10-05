@@ -1,38 +1,51 @@
-import pytesseract
 import cv2
+import numpy as np
+import glob
+
+from cv2 import imshow
+from PIL import Image, ImageFilter
+
 import re
+import skimage.io as sk
+from skimage import img_as_float, img_as_ubyte
+from numpy import clip, dstack, asarray
+from matplotlib.colors import rgb2hex
 
-imagePath = r'img_thermal_1591962901684.jpg'
-img = cv2.imread(imagePath)
+# img = cv2.imread(r'cutImage\thermoImg.jpg')
 
-img=cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-se=cv2.getStructuringElement(cv2.MORPH_RECT , (5,5))
-bg=cv2.morphologyEx(img, cv2.MORPH_DILATE, se)
+def recolor(img, IMAGE_PATH):
+    colorsImg = Image.open(IMAGE_PATH)
+    data = np.array(img)
+    colorsData = np.array(colorsImg)
 
-out_gray=cv2.divide(img, bg, scale=255)
-out_binary=cv2.threshold(out_gray, 0, 255, cv2.THRESH_OTSU )[1]
+    print(colorsData[0][0])
 
-## Преобразование гуссиана
-# image = cv2.imread(r'img_thermal_1591962901684.jpg', cv2.IMREAD_GRAYSCALE)
-# image = cv2.GaussianBlur(image, (5,5), 1)
-# image = cv2.adaptiveThreshold(image,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,3,2)
+    red, green, blue = data[:, :, 0], data[:, :, 1], data[:, :, 2]
+    r2, g2, b2 = int(colorsData[0][0][0]), int(colorsData[0][0][1]), int(colorsData[0][0][2])
 
-## Удаляем все не черные пиксели
-# gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-# image[image != 255] = 0 # change everything to white where pixel is not black
-# threshold_img = cv2.threshold(gray_image, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+    for row in colorsData:
+        r1, g1, b1 = int(row[0][0]), int(row[0][1]), int(row[0][2])
+        mask = (abs(red - r1) < 20) & (abs(green - g1) < 20) & (abs(blue - b1) < 20)
+        data[:, :, :3][mask] = [r2, g2, b2]
 
-# cv2.imshow('threshold_img', image)
+    return Image.fromarray(data)
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+# def recolorHSV(img, IMAGE_PATH):
+#     colorImage =
 
-text = pytesseract.image_to_string(image)
-matches = re.match('26', text)
 
-print(text)
-# print(matches.group(0))
-cv2.imwrite('my_img2.jpeg', image)
+def recolorExe(IMAGE_PATH):
+    img = Image.open(IMAGE_PATH)
+    img = img.filter(ImageFilter.GaussianBlur(5))
+    files = glob.glob('bar_fragments/*')
 
+    for i in range(0, len(files)):
+        img = recolor(img, 'bar_fragments/fragment_'+str(i)+'.jpg')
+        img.save('finalImages/newimg_'+str(i)+'.jpg')
+    img.save('finalImages/finalImage_.jpg')
+
+# imshow('image', img)
 cv2.waitKey(0)
-
 cv2.destroyAllWindows()
+
+# cv2.imwrite(r'newimg_1.jpg', img)
